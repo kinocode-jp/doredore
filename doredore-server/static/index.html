@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>doredore - Admin</title>
+    <title>doredore - 管理画面</title>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
@@ -12,9 +12,9 @@
         <!-- Header -->
         <div class="bg-white rounded-lg shadow-md p-6 mb-6">
             <h1 class="text-3xl font-bold text-gray-800 mb-2">
-                🔍 doredore Admin
+                🔍 doredore 管理画面
             </h1>
-            <p class="text-gray-600">Manage your RAG knowledge base</p>
+            <p class="text-gray-600">RAGナレッジベースを管理</p>
         </div>
 
         <!-- Tabs -->
@@ -25,21 +25,21 @@
                     :class="currentTab === 'collections' ? 'bg-blue-500 text-white' : 'bg-white text-gray-700'"
                     class="px-6 py-3 rounded-t-lg font-semibold transition"
                 >
-                    Collections
+                    コレクション
                 </button>
                 <button
                     @click="currentTab = 'documents'"
                     :class="currentTab === 'documents' ? 'bg-blue-500 text-white' : 'bg-white text-gray-700'"
                     class="px-6 py-3 rounded-t-lg font-semibold transition"
                 >
-                    Documents
+                    ドキュメント
                 </button>
                 <button
                     @click="currentTab = 'search'"
                     :class="currentTab === 'search' ? 'bg-blue-500 text-white' : 'bg-white text-gray-700'"
                     class="px-6 py-3 rounded-t-lg font-semibold transition"
                 >
-                    Search & Test
+                    検索とテスト
                 </button>
             </div>
         </div>
@@ -48,32 +48,32 @@
         <div x-show="currentTab === 'collections'" class="space-y-6">
             <!-- Create Collection Form -->
             <div class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-xl font-bold mb-4">Create New Collection</h2>
+                <h2 class="text-xl font-bold mb-4">新しいコレクションを作成</h2>
                 <form @submit.prevent="createCollection" class="space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Collection Name</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">コレクション名</label>
                         <input
                             type="text"
                             x-model="newCollection.name"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="e.g., faq, knowledge-base"
+                            placeholder="例: faq, knowledge-base"
                             required
                         >
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Description (Optional)</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">説明（オプション）</label>
                         <input
                             type="text"
                             x-model="newCollection.description"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="e.g., Frequently asked questions"
+                            placeholder="例: よくある質問"
                         >
                     </div>
                     <button
                         type="submit"
                         class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg transition"
                     >
-                        Create Collection
+                        コレクションを作成
                     </button>
                 </form>
             </div>
@@ -81,12 +81,12 @@
             <!-- Collections List -->
             <div class="bg-white rounded-lg shadow-md p-6">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-bold">Collections</h2>
+                    <h2 class="text-xl font-bold">コレクション一覧</h2>
                     <button
                         @click="loadCollections"
                         class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition"
                     >
-                        Refresh
+                        更新
                     </button>
                 </div>
                 <div class="space-y-3">
@@ -95,20 +95,20 @@
                             <div class="flex justify-between items-start">
                                 <div class="flex-1">
                                     <h3 class="font-semibold text-lg" x-text="collection.name"></h3>
-                                    <p class="text-gray-600 text-sm" x-text="collection.description || 'No description'"></p>
-                                    <p class="text-gray-400 text-xs mt-2" x-text="'ID: ' + collection.id + ' • Created: ' + collection.created_at"></p>
+                                    <p class="text-gray-600 text-sm" x-text="collection.description || '説明なし'"></p>
+                                    <p class="text-gray-400 text-xs mt-2" x-text="'ID: ' + collection.id + ' • 作成日時: ' + collection.created_at"></p>
                                 </div>
                                 <button
                                     @click="deleteCollection(collection.name)"
                                     class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm transition"
                                 >
-                                    Delete
+                                    削除
                                 </button>
                             </div>
                         </div>
                     </template>
                     <div x-show="collections.length === 0" class="text-center text-gray-500 py-8">
-                        No collections found. Create one to get started!
+                        コレクションがありません。作成して始めましょう！
                     </div>
                 </div>
             </div>
@@ -118,33 +118,33 @@
         <div x-show="currentTab === 'documents'" class="space-y-6">
             <!-- Add Document Form -->
             <div class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-xl font-bold mb-4">Add New Document</h2>
+                <h2 class="text-xl font-bold mb-4">新しいドキュメントを追加</h2>
                 <form @submit.prevent="addDocument" class="space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Collection</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">コレクション</label>
                         <select
                             x-model="newDocument.collection"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             required
                         >
-                            <option value="">Select a collection</option>
+                            <option value="">コレクションを選択</option>
                             <template x-for="collection in collections" :key="collection.id">
                                 <option :value="collection.name" x-text="collection.name"></option>
                             </template>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Content</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">コンテンツ</label>
                         <textarea
                             x-model="newDocument.content"
                             rows="4"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="Enter document content..."
+                            placeholder="ドキュメントの内容を入力..."
                             required
                         ></textarea>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Metadata (JSON, Optional)</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">メタデータ（JSON、オプション）</label>
                         <textarea
                             x-model="newDocument.metadata"
                             rows="2"
@@ -156,7 +156,7 @@
                         type="submit"
                         class="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg transition"
                     >
-                        Add Document
+                        ドキュメントを追加
                     </button>
                 </form>
             </div>
@@ -164,14 +164,14 @@
             <!-- Documents List -->
             <div class="bg-white rounded-lg shadow-md p-6">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-bold">Documents</h2>
+                    <h2 class="text-xl font-bold">ドキュメント一覧</h2>
                     <div class="flex space-x-2">
                         <select
                             x-model="documentFilter.collection"
                             @change="loadDocuments"
                             class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         >
-                            <option value="">All Collections</option>
+                            <option value="">すべてのコレクション</option>
                             <template x-for="collection in collections" :key="collection.id">
                                 <option :value="collection.name" x-text="collection.name"></option>
                             </template>
@@ -180,7 +180,7 @@
                             @click="loadDocuments"
                             class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition"
                         >
-                            Refresh
+                            更新
                         </button>
                     </div>
                 </div>
@@ -203,13 +203,13 @@
                                     @click="deleteDocument(doc.id)"
                                     class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm transition ml-4"
                                 >
-                                    Delete
+                                    削除
                                 </button>
                             </div>
                         </div>
                     </template>
                     <div x-show="documents.length === 0" class="text-center text-gray-500 py-8">
-                        No documents found.
+                        ドキュメントがありません。
                     </div>
                 </div>
             </div>
@@ -219,26 +219,26 @@
         <div x-show="currentTab === 'search'" class="space-y-6">
             <!-- Search Form -->
             <div class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-xl font-bold mb-4">Search & Test RAG</h2>
+                <h2 class="text-xl font-bold mb-4">検索とRAGテスト</h2>
                 <form @submit.prevent="performSearch" class="space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Query</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">クエリ</label>
                         <input
                             type="text"
                             x-model="searchQuery.q"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="Enter your search query..."
+                            placeholder="検索クエリを入力..."
                             required
                         >
                     </div>
                     <div class="grid grid-cols-3 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Collection</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">コレクション</label>
                             <select
                                 x-model="searchQuery.collection"
                                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             >
-                                <option value="">All Collections</option>
+                                <option value="">すべてのコレクション</option>
                                 <template x-for="collection in collections" :key="collection.id">
                                     <option :value="collection.name" x-text="collection.name"></option>
                                 </template>
@@ -255,7 +255,7 @@
                             >
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Threshold</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">閾値</label>
                             <input
                                 type="number"
                                 x-model="searchQuery.threshold"
@@ -271,14 +271,14 @@
                             type="submit"
                             class="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg transition"
                         >
-                            🔍 Search
+                            🔍 検索
                         </button>
                         <button
                             type="button"
                             @click="performEnrich"
                             class="flex-1 bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg transition"
                         >
-                            ✨ Enrich (RAG)
+                            ✨ RAG強化
                         </button>
                     </div>
                 </form>
@@ -287,14 +287,14 @@
             <!-- Search Results -->
             <div x-show="searchResults.length > 0" class="bg-white rounded-lg shadow-md p-6">
                 <h2 class="text-xl font-bold mb-4">
-                    Search Results
-                    <span class="text-sm font-normal text-gray-600" x-text="'(' + searchResults.length + ' found)'"></span>
+                    検索結果
+                    <span class="text-sm font-normal text-gray-600" x-text="'(' + searchResults.length + '件)'"></span>
                 </h2>
                 <div class="space-y-3">
                     <template x-for="(result, index) in searchResults" :key="index">
                         <div class="border border-gray-200 rounded-lg p-4">
                             <div class="flex items-start justify-between mb-2">
-                                <span class="text-sm font-semibold text-blue-600" x-text="'Score: ' + result.score.toFixed(3)"></span>
+                                <span class="text-sm font-semibold text-blue-600" x-text="'スコア: ' + result.score.toFixed(3)"></span>
                                 <span class="text-xs text-gray-500" x-text="result.collection"></span>
                             </div>
                             <p class="text-gray-800 mb-2" x-text="result.content"></p>
@@ -308,12 +308,12 @@
 
             <!-- Enrich Context -->
             <div x-show="enrichContext" class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-xl font-bold mb-4">Generated Context (for LLM)</h2>
+                <h2 class="text-xl font-bold mb-4">生成されたコンテキスト（LLM用）</h2>
                 <div class="bg-gray-50 border border-gray-300 rounded-lg p-4">
                     <pre class="whitespace-pre-wrap text-sm text-gray-800" x-text="enrichContext"></pre>
                 </div>
                 <p class="text-sm text-gray-600 mt-4">
-                    💡 This context can be passed to your LLM (OpenAI, Claude, etc.) for enhanced responses.
+                    💡 このコンテキストはLLM（OpenAI、Claudeなど）に渡して応答を強化するために使用できます。
                 </p>
             </div>
         </div>
@@ -375,7 +375,7 @@
                             this.collections = data.data;
                         }
                     } catch (e) {
-                        this.showStatus('Failed to load collections', 'error');
+                        this.showStatus('コレクションの読み込みに失敗しました', 'error');
                     }
                 },
 
@@ -388,30 +388,30 @@
                         });
                         const data = await res.json();
                         if (data.success) {
-                            this.showStatus('Collection created!', 'success');
+                            this.showStatus('コレクションを作成しました！', 'success');
                             this.newCollection = { name: '', description: '' };
                             await this.loadCollections();
                         } else {
                             this.showStatus(data.error, 'error');
                         }
                     } catch (e) {
-                        this.showStatus('Failed to create collection', 'error');
+                        this.showStatus('コレクションの作成に失敗しました', 'error');
                     }
                 },
 
                 async deleteCollection(name) {
-                    if (!confirm(`Delete collection "${name}"?`)) return;
+                    if (!confirm(`コレクション "${name}" を削除しますか？`)) return;
                     try {
                         const res = await fetch(`/api/collections/${name}`, { method: 'DELETE' });
                         const data = await res.json();
                         if (data.success) {
-                            this.showStatus('Collection deleted!', 'success');
+                            this.showStatus('コレクションを削除しました！', 'success');
                             await this.loadCollections();
                         } else {
                             this.showStatus(data.error, 'error');
                         }
                     } catch (e) {
-                        this.showStatus('Failed to delete collection', 'error');
+                        this.showStatus('コレクションの削除に失敗しました', 'error');
                     }
                 },
 
@@ -429,7 +429,7 @@
                             this.documents = data.data;
                         }
                     } catch (e) {
-                        this.showStatus('Failed to load documents', 'error');
+                        this.showStatus('ドキュメントの読み込みに失敗しました', 'error');
                     }
                 },
 
@@ -444,7 +444,7 @@
                             try {
                                 payload.metadata = JSON.parse(this.newDocument.metadata);
                             } catch (e) {
-                                this.showStatus('Invalid JSON in metadata', 'error');
+                                this.showStatus('メタデータのJSONが無効です', 'error');
                                 return;
                             }
                         }
@@ -456,30 +456,30 @@
                         });
                         const data = await res.json();
                         if (data.success) {
-                            this.showStatus('Document added!', 'success');
+                            this.showStatus('ドキュメントを追加しました！', 'success');
                             this.newDocument = { collection: '', content: '', metadata: '' };
                             await this.loadDocuments();
                         } else {
                             this.showStatus(data.error, 'error');
                         }
                     } catch (e) {
-                        this.showStatus('Failed to add document', 'error');
+                        this.showStatus('ドキュメントの追加に失敗しました', 'error');
                     }
                 },
 
                 async deleteDocument(id) {
-                    if (!confirm(`Delete document ${id}?`)) return;
+                    if (!confirm(`ドキュメント ${id} を削除しますか？`)) return;
                     try {
                         const res = await fetch(`/api/documents/${id}`, { method: 'DELETE' });
                         const data = await res.json();
                         if (data.success) {
-                            this.showStatus('Document deleted!', 'success');
+                            this.showStatus('ドキュメントを削除しました！', 'success');
                             await this.loadDocuments();
                         } else {
                             this.showStatus(data.error, 'error');
                         }
                     } catch (e) {
-                        this.showStatus('Failed to delete document', 'error');
+                        this.showStatus('ドキュメントの削除に失敗しました', 'error');
                     }
                 },
 
@@ -495,12 +495,12 @@
                         if (data.success) {
                             this.searchResults = data.data.results;
                             this.enrichContext = '';
-                            this.showStatus(`Found ${this.searchResults.length} results`, 'success');
+                            this.showStatus(`${this.searchResults.length}件見つかりました`, 'success');
                         } else {
                             this.showStatus(data.error, 'error');
                         }
                     } catch (e) {
-                        this.showStatus('Search failed', 'error');
+                        this.showStatus('検索に失敗しました', 'error');
                     }
                 },
 
@@ -515,12 +515,12 @@
                         if (data.success) {
                             this.searchResults = data.data.sources;
                             this.enrichContext = data.data.context;
-                            this.showStatus('Context generated!', 'success');
+                            this.showStatus('コンテキストを生成しました！', 'success');
                         } else {
                             this.showStatus(data.error, 'error');
                         }
                     } catch (e) {
-                        this.showStatus('Enrich failed', 'error');
+                        this.showStatus('RAG強化に失敗しました', 'error');
                     }
                 },
 

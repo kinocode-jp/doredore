@@ -4,20 +4,24 @@ use rusqlite::{params, Connection};
 use std::path::Path;
 
 pub struct Database {
-    conn: Connection,
+    db_path: String,
 }
 
 impl Database {
     pub fn new<P: AsRef<Path>>(db_path: P) -> Result<Self> {
-        let conn = Connection::open(db_path)?;
-        let db = Self { conn };
-        db.init_schema()?;
-        Ok(db)
+        let db_path = db_path.as_ref().to_string_lossy().to_string();
+        let conn = Connection::open(&db_path)?;
+        Self::init_schema(&conn)?;
+        Ok(Self { db_path })
     }
 
-    fn init_schema(&self) -> Result<()> {
+    fn connect(&self) -> Result<Connection> {
+        Ok(Connection::open(&self.db_path)?)
+    }
+
+    fn init_schema(conn: &Connection) -> Result<()> {
         // コレクションテーブル
-        self.conn.execute(
+        conn.execute(
             "CREATE TABLE IF NOT EXISTS collections (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT UNIQUE NOT NULL,
@@ -29,7 +33,7 @@ impl Database {
         )?;
 
         // ドキュメントテーブル
-        self.conn.execute(
+        conn.execute(
             "CREATE TABLE IF NOT EXISTS documents (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 collection_id INTEGER NOT NULL,
@@ -44,7 +48,7 @@ impl Database {
         )?;
 
         // 設定テーブル
-        self.conn.execute(
+        conn.execute(
             "CREATE TABLE IF NOT EXISTS settings (
                 key TEXT PRIMARY KEY,
                 value TEXT
@@ -53,19 +57,19 @@ impl Database {
         )?;
 
         // インデックス
-        self.conn.execute(
+        conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_documents_collection ON documents(collection_id)",
             [],
         )?;
 
-        self.conn.execute(
+        conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_collections_name ON collections(name)",
             [],
         )?;
 
         // FTS5仮想テーブル（Full-Text Search）
         // キーワード検索用の転置インデックスを提供
-        self.conn.execute(
+        conn.execute(
             "CREATE VIRTUAL TABLE IF NOT EXISTS documents_fts USING fts5(
                 document_id UNINDEXED,  -- ドキュメントIDは検索対象外（JOINキーとして使用）
                 content,                -- 検索対象のテキストカラム
@@ -84,15 +88,17 @@ impl Database {
     // コレクション管理
 
     pub fn create_collection(&self, name: &str, description: Option<&str>) -> Result<i64> {
-        self.conn.execute(
+        let conn = self.connect()?;
+        conn.execute(
             "INSERT INTO collections (name, description) VALUES (?1, ?2)",
             params![name, description],
         )?;
-        Ok(self.conn.last_insert_rowid())
+        Ok(conn.last_insert_rowid())
     }
 
     pub fn get_collection(&self, name: &str) -> Result<Collection> {
-        let mut stmt = self.conn.prepare(
+        let conn = self.connect()?;
+        let mut stmt = conn.prepare(
             "SELECT c.id, c.name, c.description,
                     COUNT(d.id) as document_count,
                     c.created_at, c.updated_at
@@ -102,7 +108,7 @@ impl Database {
              GROUP BY c.id",
         )?;
 
-        let collection = stmt.query_row(params![name], |row| {
+        let collection = match stmt.query_row(params![name], |row| {
             Ok(Collection::new(
                 row.get(0)?,
                 row.get(1)?,
@@ -111,13 +117,20 @@ impl Database {
                 row.get(4)?,
                 row.get(5)?,
             ))
-        })?;
+        }) {
+            Ok(collection) => collection,
+            Err(rusqlite::Error::QueryReturnedNoRows) => {
+                return Err(crate::error::Error::CollectionNotFound(name.to_string()))
+            }
+            Err(err) => return Err(err.into()),
+        };
 
         Ok(collection)
     }
 
     pub fn get_collection_by_id(&self, id: i64) -> Result<Collection> {
-        let mut stmt = self.conn.prepare(
+        let conn = self.connect()?;
+        let mut stmt = conn.prepare(
             "SELECT c.id, c.name, c.description,
                     COUNT(d.id) as document_count,
                     c.created_at, c.updated_at
@@ -142,7 +155,8 @@ impl Database {
     }
 
     pub fn list_collections(&self) -> Result<Vec<Collection>> {
-        let mut stmt = self.conn.prepare(
+        let conn = self.connect()?;
+        let mut stmt = conn.prepare(
             "SELECT c.id, c.name, c.description,
                     COUNT(d.id) as document_count,
                     c.created_at, c.updated_at
@@ -169,9 +183,8 @@ impl Database {
     }
 
     pub fn delete_collection(&self, name: &str) -> Result<bool> {
-        let rows_affected = self
-            .conn
-            .execute("DELETE FROM collections WHERE name = ?1", params![name])?;
+        let conn = self.connect()?;
+        let rows_affected = conn.execute("DELETE FROM collections WHERE name = ?1", params![name])?;
         Ok(rows_affected > 0)
     }
 
@@ -184,6 +197,7 @@ impl Database {
         embedding: &[f32],
         metadata: Option<&serde_json::Value>,
     ) -> Result<i64> {
+        let conn = self.connect()?;
         let embedding_bytes = embedding
             .iter()
             .flat_map(|f| f.to_le_bytes())
@@ -191,17 +205,17 @@ impl Database {
 
         let metadata_json = metadata.map(|m| serde_json::to_string(m)).transpose()?;
 
-        self.conn.execute(
+        conn.execute(
             "INSERT INTO documents (collection_id, content, embedding, metadata)
              VALUES (?1, ?2, ?3, ?4)",
             params![collection_id, content, embedding_bytes, metadata_json],
         )?;
 
-        let document_id = self.conn.last_insert_rowid();
+        let document_id = conn.last_insert_rowid();
 
         // FTSテーブルにも挿入（キーワード検索用のインデックスを構築）
         // documentsテーブルとdocuments_ftsテーブルの同期を保つ
-        self.conn.execute(
+        conn.execute(
             "INSERT INTO documents_fts (document_id, content) VALUES (?1, ?2)",
             params![document_id, content],
         )?;
@@ -210,7 +224,8 @@ impl Database {
     }
 
     pub fn get_document(&self, document_id: i64) -> Result<Document> {
-        let mut stmt = self.conn.prepare(
+        let conn = self.connect()?;
+        let mut stmt = conn.prepare(
             "SELECT d.id, d.collection_id, c.name, d.content, d.metadata,
                     d.created_at, d.updated_at
              FROM documents d
@@ -245,6 +260,7 @@ impl Database {
         limit: i64,
         offset: i64,
     ) -> Result<Vec<Document>> {
+        let conn = self.connect()?;
         let query = if let Some(cid) = collection_id {
             format!(
                 "SELECT d.id, d.collection_id, c.name, d.content, d.metadata,
@@ -268,7 +284,7 @@ impl Database {
             )
         };
 
-        let mut stmt = self.conn.prepare(&query)?;
+        let mut stmt = conn.prepare(&query)?;
 
         let documents = stmt
             .query_map([], |row| {
@@ -304,6 +320,7 @@ impl Database {
             return Ok(false);
         }
 
+        let conn = self.connect()?;
         let mut updates = Vec::new();
         let mut params_vec: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
 
@@ -326,25 +343,21 @@ impl Database {
 
         updates.push("updated_at = CURRENT_TIMESTAMP");
 
-        let query = format!(
-            "UPDATE documents SET {} WHERE id = ?",
-            updates.join(", ")
-        );
+        let query = format!("UPDATE documents SET {} WHERE id = ?", updates.join(", "));
 
         params_vec.push(Box::new(document_id));
 
         let params_refs: Vec<&dyn rusqlite::ToSql> =
             params_vec.iter().map(|b| b.as_ref()).collect();
 
-        let rows_affected = self.conn.execute(&query, params_refs.as_slice())?;
+        let rows_affected = conn.execute(&query, params_refs.as_slice())?;
 
         Ok(rows_affected > 0)
     }
 
     pub fn delete_document(&self, document_id: i64) -> Result<bool> {
-        let rows_affected = self
-            .conn
-            .execute("DELETE FROM documents WHERE id = ?1", params![document_id])?;
+        let conn = self.connect()?;
+        let rows_affected = conn.execute("DELETE FROM documents WHERE id = ?1", params![document_id])?;
         Ok(rows_affected > 0)
     }
 
@@ -352,6 +365,7 @@ impl Database {
         &self,
         collection_ids: Option<&[i64]>,
     ) -> Result<Vec<(i64, String, Vec<f32>, String)>> {
+        let conn = self.connect()?;
         let query = if let Some(cids) = collection_ids {
             let placeholders = cids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
             format!(
@@ -368,7 +382,7 @@ impl Database {
                 .to_string()
         };
 
-        let mut stmt = self.conn.prepare(&query)?;
+        let mut stmt = conn.prepare(&query)?;
 
         let row_mapper = |row: &rusqlite::Row| -> rusqlite::Result<(i64, String, Vec<f32>, String)> {
             let id: i64 = row.get(0)?;
@@ -393,6 +407,24 @@ impl Database {
         };
 
         Ok(results.collect::<std::result::Result<Vec<_>, _>>()?)
+    }
+
+    pub fn document_exists_by_metadata(
+        &self,
+        collection_id: i64,
+        key: &str,
+        value: &str,
+    ) -> Result<bool> {
+        let conn = self.connect()?;
+        let json_path = format!("$.{}", key);
+        let mut stmt = conn.prepare(
+            "SELECT 1 FROM documents
+             WHERE collection_id = ?1
+               AND CAST(json_extract(metadata, ?2) AS TEXT) = ?3
+             LIMIT 1",
+        )?;
+        let mut rows = stmt.query(params![collection_id, json_path, value])?;
+        Ok(rows.next()?.is_some())
     }
 
     /// キーワード検索（FTS5 + LIKE検索の2段階フォールバック）
@@ -463,6 +495,7 @@ impl Database {
         query: &str,
         collection_ids: Option<&[i64]>,
     ) -> Result<Vec<(i64, String, f32, String)>> {
+        let conn = self.connect()?;
         // SQLクエリを構築
         // MATCH演算子: FTS5の全文検索を実行
         // bm25(documents_fts): BM25スコアを計算（負の値）
@@ -489,15 +522,10 @@ impl Database {
                 .to_string()
         };
 
-        let mut stmt = self.conn.prepare(&query_sql)?;
+        let mut stmt = conn.prepare(&query_sql)?;
 
         let row_mapper = |row: &rusqlite::Row| -> rusqlite::Result<(i64, String, f32, String)> {
-            Ok((
-                row.get(0)?,
-                row.get(1)?,
-                row.get(2)?,
-                row.get(3)?,
-            ))
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
         };
 
         let results = if let Some(cids) = collection_ids {
@@ -518,33 +546,16 @@ impl Database {
     /// SQLのLIKE演算子を使った単純なパターンマッチング
     /// FTS5が対応していない日本語などのCJK言語でも確実に動作する
     ///
-    /// # 動作原理
-    /// - パターン: `%キーワード%`
-    /// - 前方・後方に任意の文字列を許可
-    /// - 部分一致検索を実現
-    ///
-    /// # パフォーマンス
-    /// - 計算量: O(n × m)
-    ///   - n: ドキュメント数
-    ///   - m: 各ドキュメントの平均文字数
-    /// - インデックス未使用（全件スキャン）
-    /// - 小〜中規模データセット向け（〜10万件程度）
-    ///
-    /// # スコアリング
-    /// - 固定値1.0を返す（マッチした = 関連あり）
-    /// - ランキングはドキュメントIDの降順（新しい順）
-    ///
     /// # 引数
-    /// * `query` - 検索キーワード
+    /// * `query` - 検索クエリ
     /// * `collection_ids` - 検索対象のコレクションID
     fn keyword_search_like(
         &self,
         query: &str,
         collection_ids: Option<&[i64]>,
     ) -> Result<Vec<(i64, String, f32, String)>> {
-        // LIKEパターンを作成: "キーワード" -> "%キーワード%"
-        let like_pattern = format!("%{}%", query);
-
+        let conn = self.connect()?;
+        let pattern = format!("%{}%", query);
         let query_sql = if let Some(cids) = collection_ids {
             let placeholders = cids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
             format!(
@@ -552,7 +563,7 @@ impl Database {
                  FROM documents d
                  JOIN collections c ON d.collection_id = c.id
                  WHERE d.content LIKE ?1 AND d.collection_id IN ({})
-                 ORDER BY d.id DESC",
+                 ORDER BY d.created_at DESC",
                 placeholders
             )
         } else {
@@ -560,29 +571,24 @@ impl Database {
              FROM documents d
              JOIN collections c ON d.collection_id = c.id
              WHERE d.content LIKE ?1
-             ORDER BY d.id DESC"
+             ORDER BY d.created_at DESC"
                 .to_string()
         };
 
-        let mut stmt = self.conn.prepare(&query_sql)?;
+        let mut stmt = conn.prepare(&query_sql)?;
 
         let row_mapper = |row: &rusqlite::Row| -> rusqlite::Result<(i64, String, f32, String)> {
-            Ok((
-                row.get(0)?,
-                row.get(1)?,
-                row.get(2)?,
-                row.get(3)?,
-            ))
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
         };
 
         let results = if let Some(cids) = collection_ids {
-            let mut params: Vec<&dyn rusqlite::ToSql> = vec![&like_pattern];
+            let mut params: Vec<&dyn rusqlite::ToSql> = vec![&pattern];
             let cid_params: Vec<&dyn rusqlite::ToSql> =
                 cids.iter().map(|c| c as &dyn rusqlite::ToSql).collect();
             params.extend(cid_params);
             stmt.query_map(params.as_slice(), row_mapper)?
         } else {
-            stmt.query_map([&like_pattern], row_mapper)?
+            stmt.query_map([pattern], row_mapper)?
         };
 
         Ok(results.collect::<std::result::Result<Vec<_>, _>>()?)

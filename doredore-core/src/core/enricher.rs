@@ -111,6 +111,18 @@ impl Doredore {
         self.db.list_documents(collection_id, limit, offset)
     }
 
+    pub fn document_exists_by_metadata(
+        &self,
+        collection: &str,
+        key: &str,
+        value: &str,
+    ) -> Result<bool> {
+        let coll = self.db.get_collection(collection).map_err(|_| {
+            Error::CollectionNotFound(format!("Collection '{}' not found", collection))
+        })?;
+        self.db.document_exists_by_metadata(coll.id, key, value)
+    }
+
     pub fn update_document(
         &self,
         document_id: i64,

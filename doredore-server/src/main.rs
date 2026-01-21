@@ -6,7 +6,7 @@ use axum::{
     Router,
 };
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use tower_http::{
     cors::{Any, CorsLayer},
     services::ServeDir,
@@ -23,7 +23,7 @@ use doredore_core::SearchMode;
 
 #[derive(Clone)]
 struct AppState {
-    rag: Arc<Mutex<Doredore>>,
+    rag: Arc<Doredore>,
 }
 
 // ============================================================================
@@ -107,7 +107,7 @@ async fn health_check() -> impl IntoResponse {
 
 /// List all collections
 async fn list_collections(State(state): State<AppState>) -> impl IntoResponse {
-    let rag = state.rag.lock().unwrap();
+    let rag = &state.rag;
     match rag.list_collections() {
         Ok(collections) => {
             let collections_data: Vec<_> = collections
@@ -139,7 +139,7 @@ async fn create_collection(
     State(state): State<AppState>,
     Json(req): Json<CreateCollectionRequest>,
 ) -> impl IntoResponse {
-    let rag = state.rag.lock().unwrap();
+    let rag = &state.rag;
     match rag.create_collection(&req.name, req.description.as_deref()) {
         Ok(id) => {
             info!("Created collection '{}' with id {}", req.name, id);
@@ -166,7 +166,7 @@ async fn delete_collection(
     State(state): State<AppState>,
     Path(name): Path<String>,
 ) -> impl IntoResponse {
-    let rag = state.rag.lock().unwrap();
+    let rag = &state.rag;
     match rag.delete_collection(&name) {
         Ok(_) => {
             info!("Deleted collection '{}'", name);
@@ -194,7 +194,7 @@ async fn add_document(
 ) -> impl IntoResponse {
     let collection = req.collection.as_deref().unwrap_or("default");
 
-    let rag = state.rag.lock().unwrap();
+    let rag = &state.rag;
     match rag.add_document(&req.content, collection, req.metadata.as_ref()) {
         Ok(id) => {
             info!("Added document {} to collection '{}'", id, collection);
@@ -221,7 +221,7 @@ async fn delete_document(
     State(state): State<AppState>,
     Path(id): Path<i64>,
 ) -> impl IntoResponse {
-    let rag = state.rag.lock().unwrap();
+    let rag = &state.rag;
     match rag.delete_document(id) {
         Ok(_) => {
             info!("Deleted document {}", id);
@@ -257,7 +257,7 @@ async fn list_documents(
         .and_then(|s| s.parse().ok())
         .unwrap_or(0);
 
-    let rag = state.rag.lock().unwrap();
+    let rag = &state.rag;
     match rag.list_documents(collection, limit, offset) {
         Ok(documents) => {
             let docs_data: Vec<_> = documents
@@ -293,7 +293,7 @@ async fn search(
     let top_k = query.top_k.unwrap_or(5);
     let threshold = query.threshold.unwrap_or(0.0);
 
-    let rag = state.rag.lock().unwrap();
+    let rag = &state.rag;
     match rag.search(&query.q, query.collection.as_deref(), None, top_k, threshold, SearchMode::Semantic, None) {
         Ok(results) => {
             let results_data: Vec<_> = results
@@ -335,7 +335,7 @@ async fn enrich(
 ) -> impl IntoResponse {
     let top_k = query.top_k.unwrap_or(3);
 
-    let rag = state.rag.lock().unwrap();
+    let rag = &state.rag;
     match rag.enrich(&query.q, query.collection.as_deref(), None, top_k, 0.0, SearchMode::Semantic, None) {
         Ok(result) => {
             let sources: Vec<_> = result
@@ -380,7 +380,7 @@ async fn import_csv(
     let collection = req.collection.as_deref().unwrap_or("default");
     let content_column = req.content_column.as_deref().unwrap_or("content");
 
-    let rag = state.rag.lock().unwrap();
+    let rag = &state.rag;
     match rag.import_csv(&req.file_path, collection, content_column, None) {
         Ok(count) => {
             info!("Imported {} documents from {}", count, req.file_path);
@@ -436,7 +436,7 @@ async fn main() -> anyhow::Result<()> {
     info!("Doredore initialized with model: {}", model);
 
     let state = AppState {
-        rag: Arc::new(Mutex::new(rag)),
+        rag: Arc::new(rag),
     };
 
     // Configure CORS
